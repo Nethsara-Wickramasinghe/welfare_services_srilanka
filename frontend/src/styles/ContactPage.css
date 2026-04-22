@@ -1,0 +1,86 @@
+.contact-page {
+  padding-top: 80px;
+}
+
+.contact-page .page-header {
+  background: linear-gradient(135deg, #1a5f7a 0%, #159895 100%);
+  color: white;
+  padding: 60px 20px;
+  text-align: center;
+}
+
+.contact-page .page-header h1 {
+  font-size: 2.5rem;
+  margin-bottom: 15px;
+}
+
+.contact-page .page-header p {
+  font-size: 1.1rem;
+  opacity: 0.9;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.contact-page .contact {
+  padding-top: 40px;
+}
+
+.map-section {
+  background: #f8f9fa;
+  padding: 60px 20px;
+}
+
+.map-container {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.map-container h2 {
+  text-align: center;
+  color: #1a5f7a;
+  margin-bottom: 30px;
+  font-size: 2rem;
+}
+
+.map-placeholder {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+.map-content {
+  padding: 40px;
+  text-align: center;
+}
+
+.map-icon {
+  font-size: 4rem;
+  display: block;
+  margin-bottom: 20px;
+}
+
+.map-content p {
+  color: #333;
+  font-size: 1.1rem;
+  margin-bottom: 10px;
+}
+
+.office-hours {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #eee;
+  color: #666 !important;
+  font-size: 1rem !important;
+  line-height: 1.8;
+}
+
+@media (max-width: 768px) {
+  .contact-page .page-header h1 {
+    font-size: 2rem;
+  }
+  
+  .map-container h2 {
+    font-size: 1.5rem;
+  }
+}

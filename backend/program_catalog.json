@@ -1,0 +1,454 @@
+{
+  "metadata": {
+    "catalog_version": "1.0",
+    "last_updated": "2026-04-23",
+    "country": "Sri Lanka",
+    "intended_use": "Citizen-facing welfare guidance recommendations and next-step referrals.",
+    "important_note": "Programme rules, payment amounts, and availability can change. Final eligibility must be confirmed with the relevant authority."
+  },
+  "programs": [
+    {
+      "id": "aswesuma",
+      "display_name": "Aswesuma Welfare Benefit",
+      "group": "government_primary",
+      "category": "cash_transfer",
+      "authority": "Welfare Benefits Board",
+      "official_url": "https://wbb.gov.lk/",
+      "contact": {
+        "hotline": "1924"
+      },
+      "summary": "Main government welfare cash-transfer pathway for low-income and vulnerable households.",
+      "benefit_note": "Payment bands and categories are set through the Welfare Benefits Board and gazette updates.",
+      "trigger_logic": {
+        "recommended_when_any": [
+          {
+            "field": "income_range",
+            "operator": "in",
+            "value": [
+              "below-25000",
+              "25000-50000"
+            ]
+          },
+          {
+            "field": "employment_status",
+            "operator": "in",
+            "value": [
+              "unemployed",
+              "self-employed",
+              "unable-to-work"
+            ]
+          },
+          {
+            "field": "food_insecurity_score",
+            "operator": ">=",
+            "value": 4
+          }
+        ],
+        "recommended_when_all": [
+          {
+            "field": "family_size",
+            "operator": ">=",
+            "value": 4
+          },
+          {
+            "field": "income_range",
+            "operator": "in",
+            "value": [
+              "below-25000",
+              "25000-50000"
+            ]
+          }
+        ]
+      },
+      "next_steps": [
+        "Check beneficiary or application status through the Welfare Benefits Board.",
+        "Contact the Welfare Benefits Board hotline or visit your Divisional Secretariat for guidance.",
+        "Keep your NIC, proof of address, bank account details, and income information ready."
+      ],
+      "documents": [
+        "NIC",
+        "Proof of address",
+        "Bank account details",
+        "Income-related documents when requested"
+      ],
+      "source_links": [
+        "https://wbb.gov.lk/",
+        "https://wbb.gov.lk/web/sl/beneficiary/form"
+      ]
+    },
+    {
+      "id": "elderly_assistance",
+      "display_name": "Elderly Assistance / Elderly Programme",
+      "group": "government_primary",
+      "category": "elder_support",
+      "authority": "Welfare Benefits Board",
+      "official_url": "https://wbb.gov.lk/",
+      "contact": {
+        "hotline": "1924"
+      },
+      "summary": "Government support pathway for eligible elderly citizens and low-income households with older dependents.",
+      "benefit_note": "Allowance details may vary by gazette and current payment cycle.",
+      "trigger_logic": {
+        "recommended_when_any": [
+          {
+            "field": "has_elderly",
+            "operator": "==",
+            "value": 1
+          }
+        ],
+        "recommended_when_all": [
+          {
+            "field": "has_elderly",
+            "operator": "==",
+            "value": 1
+          },
+          {
+            "field": "income_range",
+            "operator": "in",
+            "value": [
+              "below-25000",
+              "25000-50000"
+            ]
+          }
+        ]
+      },
+      "next_steps": [
+        "Ask the Divisional Secretariat or Welfare Benefits Board about the current elderly support process.",
+        "Prepare identity documents for the elderly household member and income-related details."
+      ],
+      "documents": [
+        "NIC of applicant and elderly household member",
+        "Proof of address",
+        "Income-related documents",
+        "Any pension or support-status records if requested"
+      ],
+      "source_links": [
+        "https://wbb.gov.lk/",
+        "https://wbb.gov.lk/backend/assets/publications/2328-13_E.pdf"
+      ]
+    },
+    {
+      "id": "disability_assistance",
+      "display_name": "Disability Assistance",
+      "group": "government_primary",
+      "category": "disability_support",
+      "authority": "National Secretariat for Persons with Disabilities",
+      "official_url": "https://www.nspd.gov.lk/",
+      "contact": {
+        "phone": "+94 11 28 77 374",
+        "email": "mssnspd@gmail.com"
+      },
+      "summary": "Support pathway for persons with disabilities, including a monthly living allowance and related assistance.",
+      "benefit_note": "Current NSPD pages indicate a monthly disability allowance and related assistance services.",
+      "trigger_logic": {
+        "recommended_when_any": [
+          {
+            "field": "has_disabled_member",
+            "operator": "==",
+            "value": 1
+          }
+        ]
+      },
+      "next_steps": [
+        "Meet the Social Service Officer at your local secretariat and ask for the disability allowance process.",
+        "Obtain or keep a government medical recommendation or disability certification ready.",
+        "Ask whether assistive-device, medical-aid, or self-employment support also applies."
+      ],
+      "documents": [
+        "NIC",
+        "Medical report or government doctor recommendation",
+        "Income information when requested",
+        "Completed application through local social services office"
+      ],
+      "source_links": [
+        "https://www.nspd.gov.lk/index.php/services",
+        "https://www.nspd.gov.lk/"
+      ]
+    },
+    {
+      "id": "kidney_disease_assistance",
+      "display_name": "Kidney Disease Assistance",
+      "group": "government_primary",
+      "category": "health_support",
+      "authority": "National Secretariat for Persons with Disabilities / Local Social Services",
+      "official_url": "https://www.nspd.gov.lk/index.php/services/25-services-english/16-rs-5000-monthly-living-assistance-for-kidney-patients",
+      "contact": {
+        "phone": "+94 11 28 77 374",
+        "email": "mssnspd@gmail.com"
+      },
+      "summary": "Allowance pathway for eligible low-income kidney patients.",
+      "benefit_note": "The exact allowance amount should be verified on the current official page when shown to users.",
+      "trigger_logic": {
+        "recommended_when_any": [
+          {
+            "field": "has_chronic_illness",
+            "operator": "==",
+            "value": 1
+          }
+        ]
+      },
+      "next_steps": [
+        "Meet the Social Service Officer at the local secretariat to begin the application process.",
+        "Bring a government doctor's recommendation confirming kidney disease status.",
+        "Prepare income-related documents if requested."
+      ],
+      "documents": [
+        "NIC",
+        "Government doctor recommendation",
+        "Income-related documents",
+        "Completed local secretariat application"
+      ],
+      "source_links": [
+        "https://www.nspd.gov.lk/index.php/services/25-services-english/16-rs-5000-monthly-living-assistance-for-kidney-patients"
+      ]
+    },
+    {
+      "id": "disaster_relief",
+      "display_name": "Disaster Relief and Emergency Assistance",
+      "group": "government_primary",
+      "category": "disaster_support",
+      "authority": "National Disaster Relief Services Centre / Divisional Secretariat",
+      "official_url": "https://www.ndrsc.gov.lk/",
+      "contact": {
+        "phone": "+94 11 2665258",
+        "email": "sahana.ndrsc@gmail.com"
+      },
+      "summary": "Official disaster-relief pathway for affected households, including relief, camp support, and emergency assistance.",
+      "benefit_note": "Type and scale of assistance depend on disaster impact assessment and current relief guidance.",
+      "trigger_logic": {
+        "recommended_when_any": [
+          {
+            "field": "recent_disaster_impact",
+            "operator": "==",
+            "value": 1
+          }
+        ]
+      },
+      "next_steps": [
+        "Contact the Divisional Secretariat immediately after a disaster impact.",
+        "Ask about relief items, dry rations, medical treatment support, and housing-damage assistance.",
+        "Keep photos, damage details, and local verification records if available."
+      ],
+      "documents": [
+        "NIC",
+        "Proof of address",
+        "Damage evidence such as photos if available",
+        "Any verification from local authorities if available"
+      ],
+      "source_links": [
+        "https://www.ndrsc.gov.lk/",
+        "https://gic.gov.lk/gic/index.php/en/component/org/?id=66&task=org",
+        "https://www.dmc.gov.lk/images/pdfs/NEOP/NEOP_English.pdf"
+      ]
+    },
+    {
+      "id": "free_government_healthcare",
+      "display_name": "Government Healthcare Services",
+      "group": "government_secondary",
+      "category": "healthcare_access",
+      "authority": "Government Health Services",
+      "official_url": "https://www.health.gov.lk/",
+      "contact": {},
+      "summary": "Public health pathway for citizens who need OPD, inpatient, or specialist care through government services.",
+      "benefit_note": "This is a universal service pathway rather than a targeted cash-transfer benefit.",
+      "trigger_logic": {
+        "recommended_when_any": [
+          {
+            "field": "healthcare_access_score",
+            "operator": "<=",
+            "value": 2
+          },
+          {
+            "field": "has_chronic_illness",
+            "operator": "==",
+            "value": 1
+          },
+          {
+            "field": "has_disabled_member",
+            "operator": "==",
+            "value": 1
+          }
+        ]
+      },
+      "next_steps": [
+        "Visit the nearest government hospital or clinic for assessment.",
+        "Carry clinic books, prescriptions, and any existing medical records.",
+        "If long-term support is needed, ask about referral pathways through social services as well."
+      ],
+      "documents": [
+        "NIC",
+        "Clinic book or medical records if available",
+        "Prescriptions or referral letters if available"
+      ],
+      "source_links": [
+        "https://www.health.gov.lk/"
+      ]
+    },
+    {
+      "id": "education_support_referral",
+      "display_name": "Education Support Referral",
+      "group": "government_secondary",
+      "category": "education_support",
+      "authority": "School / Education Authorities / Local Welfare Offices",
+      "official_url": "https://moe.gov.lk/",
+      "contact": {},
+      "summary": "Referral pathway for low-income households with school-age children who may need school-related support.",
+      "benefit_note": "Availability can depend on school-level, local, or programme-specific support arrangements.",
+      "trigger_logic": {
+        "recommended_when_all": [
+          {
+            "field": "family_size",
+            "operator": ">=",
+            "value": 3
+          },
+          {
+            "field": "income_range",
+            "operator": "in",
+            "value": [
+              "below-25000",
+              "25000-50000"
+            ]
+          }
+        ]
+      },
+      "next_steps": [
+        "Speak with the school principal, zonal education office, or local welfare office about current support schemes.",
+        "Ask whether school-meal, supplies, scholarship, or hardship support is available."
+      ],
+      "documents": [
+        "NIC",
+        "Student details or school records",
+        "Income-related documents if requested"
+      ],
+      "source_links": [
+        "https://moe.gov.lk/"
+      ]
+    },
+    {
+      "id": "sarvodaya_referral",
+      "display_name": "Sarvodaya Community Support",
+      "group": "ngo_secondary",
+      "category": "community_support",
+      "authority": "Sarvodaya Shramadana Movement",
+      "official_url": "https://www.sarvodaya.org/",
+      "contact": {},
+      "summary": "Community-level NGO referral for low-income households, village support, and emergency/community assistance.",
+      "benefit_note": "Availability may vary by district and local programme presence.",
+      "trigger_logic": {
+        "recommended_when_any": [
+          {
+            "field": "income_range",
+            "operator": "in",
+            "value": [
+              "below-25000",
+              "25000-50000"
+            ]
+          },
+          {
+            "field": "recent_disaster_impact",
+            "operator": "==",
+            "value": 1
+          }
+        ]
+      },
+      "next_steps": [
+        "Check whether Sarvodaya has an active district or village-level programme in your area.",
+        "Ask about food support, village development assistance, or emergency/community referrals."
+      ],
+      "documents": [
+        "NIC",
+        "Basic household details",
+        "Any local referral or hardship information if available"
+      ],
+      "source_links": [
+        "https://www.sarvodaya.org/"
+      ]
+    },
+    {
+      "id": "helpage_referral",
+      "display_name": "HelpAge Sri Lanka Elder Support",
+      "group": "ngo_secondary",
+      "category": "elder_support",
+      "authority": "HelpAge Sri Lanka",
+      "official_url": "https://helpagesl.org/",
+      "contact": {
+        "phone": "+94 11 2803752",
+        "email": "helpage@sltnet.lk"
+      },
+      "summary": "NGO referral for elderly care, eye care, mobile clinics, and related elder support services.",
+      "benefit_note": "Useful as a targeted elder-support referral rather than a government welfare entitlement.",
+      "trigger_logic": {
+        "recommended_when_any": [
+          {
+            "field": "has_elderly",
+            "operator": "==",
+            "value": 1
+          }
+        ],
+        "recommended_when_all": [
+          {
+            "field": "has_elderly",
+            "operator": "==",
+            "value": 1
+          },
+          {
+            "field": "income_range",
+            "operator": "in",
+            "value": [
+              "below-25000",
+              "25000-50000"
+            ]
+          }
+        ]
+      },
+      "next_steps": [
+        "Contact HelpAge Sri Lanka to ask about elder-support, eye-care, or mobile-clinic options.",
+        "If vision or mobility is a concern, ask specifically about eye hospital or medical outreach services."
+      ],
+      "documents": [
+        "NIC",
+        "Basic medical records if relevant",
+        "Contact details for the household"
+      ],
+      "source_links": [
+        "https://helpagesl.org/",
+        "https://www.helpagesl.org/our_programmes/helpage_mobile_clinics.php"
+      ]
+    },
+    {
+      "id": "sarvodaya_finance_referral",
+      "display_name": "Sarvodaya Development Finance Referral",
+      "group": "ngo_secondary",
+      "category": "livelihood_support",
+      "authority": "Sarvodaya Development Finance",
+      "official_url": "https://sarvodayafinance.lk/",
+      "contact": {},
+      "summary": "Livelihood and microfinance referral for households seeking self-employment or small-business support.",
+      "benefit_note": "This is not a welfare cash grant; it is a finance/livelihood pathway.",
+      "trigger_logic": {
+        "recommended_when_any": [
+          {
+            "field": "employment_status",
+            "operator": "in",
+            "value": [
+              "self-employed",
+              "unemployed"
+            ]
+          }
+        ]
+      },
+      "next_steps": [
+        "Check whether Sarvodaya Development Finance serves your area and whether a livelihood product is suitable.",
+        "Ask about microloans, agricultural finance, and financial-literacy support."
+      ],
+      "documents": [
+        "NIC",
+        "Basic income or business information",
+        "Any existing self-employment details if applicable"
+      ],
+      "source_links": [
+        "https://sarvodayafinance.lk/"
+      ]
+    }
+  ]
+}

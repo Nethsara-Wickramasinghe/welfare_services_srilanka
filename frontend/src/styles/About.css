@@ -1,0 +1,94 @@
+/* About Section Styles */
+.about {
+  padding: 4rem 1rem;
+  background-color: #f8f9fa;
+}
+
+.about-container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.about-content h2 {
+  font-size: 2.5rem;
+  color: #1a5f7a;
+  margin: 0 0 1.5rem 0;
+}
+
+.about-content p {
+  font-size: 1.1rem;
+  color: #666;
+  line-height: 1.8;
+  margin: 0 0 2rem 0;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
+  margin: 3rem 0;
+}
+
+.stat-card {
+  background: white;
+  padding: 2rem;
+  border-radius: 8px;
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-top: 4px solid #ffc107;
+}
+
+.stat-card h3 {
+  font-size: 2.5rem;
+  color: #1a5f7a;
+  margin: 0;
+}
+
+.stat-card p {
+  color: #666;
+  margin: 0.5rem 0 0 0;
+  font-weight: 500;
+}
+
+.vision-mission {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 2rem;
+  margin-top: 3rem;
+}
+
+.vision,
+.mission {
+  background: white;
+  padding: 2rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.vision h3,
+.mission h3 {
+  color: #1a5f7a;
+  margin: 0 0 1rem 0;
+  font-size: 1.3rem;
+}
+
+.vision p,
+.mission p {
+  color: #666;
+  margin: 0;
+  line-height: 1.6;
+}
+
+@media (max-width: 768px) {
+  .about {
+    padding: 2rem 1rem;
+  }
+
+  .about-content h2 {
+    font-size: 1.8rem;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

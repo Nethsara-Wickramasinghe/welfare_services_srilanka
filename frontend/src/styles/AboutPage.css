@@ -1,0 +1,202 @@
+.about-page {
+  padding-top: 80px;
+}
+
+.about-page .page-header {
+  background: linear-gradient(135deg, #1a5f7a 0%, #159895 100%);
+  color: white;
+  padding: 60px 20px;
+  text-align: center;
+}
+
+.about-page .page-header h1 {
+  font-size: 2.5rem;
+  margin-bottom: 15px;
+}
+
+.about-page .page-header p {
+  font-size: 1.1rem;
+  opacity: 0.9;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.about-page .about {
+  padding-top: 40px;
+}
+
+.team-section {
+  background: #f8f9fa;
+  padding: 60px 20px;
+}
+
+.team-container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.team-container h2 {
+  text-align: center;
+  color: #1a5f7a;
+  margin-bottom: 40px;
+  font-size: 2rem;
+}
+
+.team-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 30px;
+}
+
+.team-card {
+  background: white;
+  padding: 30px;
+  border-radius: 12px;
+  text-align: center;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease;
+}
+
+.team-card:hover {
+  transform: translateY(-5px);
+}
+
+.team-avatar {
+  font-size: 4rem;
+  margin-bottom: 15px;
+}
+
+.team-card h3 {
+  color: #1a5f7a;
+  margin-bottom: 5px;
+}
+
+.team-role {
+  color: #159895;
+  font-weight: 600;
+  margin-bottom: 15px;
+}
+
+.team-card p:last-child {
+  color: #666;
+  line-height: 1.6;
+}
+
+@media (max-width: 768px) {
+  .about-page .page-header h1 {
+    font-size: 2rem;
+  }
+  
+  .team-container h2 {
+    font-size: 1.5rem;
+  }
+}
+
+/* SWN Modal Styles */
+.swn-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+}
+.swn-modal-content {
+  background: white;
+  padding: 30px;
+  border-radius: 12px;
+  max-width: 500px;
+  width: 90%;
+  position: relative;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+  max-height: 90vh;
+  overflow-y: auto;
+}
+.swn-modal-content-wide {
+  max-width: 700px;
+}
+.swn-modal-close {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #666;
+  padding: 0;
+  line-height: 1;
+}
+.swn-modal-close:hover {
+  color: #000;
+}
+.swn-modal-content h2 {
+  color: #1a5f7a;
+  margin-top: 0;
+  margin-bottom: 10px;
+}
+.swn-modal-content p {
+  color: #555;
+  margin-bottom: 20px;
+}
+.swn-modal-form .form-fields-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 15px;
+  margin-bottom: 20px;
+}
+@media (min-width: 600px) {
+  .swn-modal-content-wide .form-fields-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+.swn-modal-form .form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  text-align: left;
+}
+.swn-modal-form label {
+  font-weight: 600;
+  color: #333;
+  text-transform: capitalize;
+  font-size: 14px;
+}
+.swn-modal-form input, .swn-modal-form select {
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 15px;
+  width: 100%;
+  box-sizing: border-box;
+}
+.swn-modal-btn {
+  background: #159895;
+  color: white;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 6px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  width: 100%;
+}
+.swn-modal-btn:hover {
+  background: #1a5f7a;
+}
+.swn-modal-submit:disabled {
+  background: #999;
+  cursor: not-allowed;
+}
+.swn-modal-result {
+  text-align: center;
+  padding: 20px 0;
+}
+.swn-modal-result h3 {
+  margin-top: 0;
+}
+.zone-high { color: #f87171; font-weight: bold; }
+.zone-medium { color: #fbbf24; font-weight: bold; }
+.zone-low { color: #34d399; font-weight: bold; }

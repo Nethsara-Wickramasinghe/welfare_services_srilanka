@@ -1,0 +1,61 @@
+/* Service Card Styles */
+.service-card {
+  background: white;
+  padding: 2rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  text-align: center;
+  transition: all 0.3s ease;
+  border-top: 4px solid #1a5f7a;
+}
+
+.service-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 8px 12px rgba(0, 0, 0, 0.15);
+  border-top-color: #ffc107;
+}
+
+.service-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.service-icon img {
+  width: 80px;
+  height: 80px;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.service-card h3 {
+  color: #1a5f7a;
+  margin: 1rem 0;
+  font-size: 1.3rem;
+}
+
+.service-card p {
+  color: #666;
+  margin: 0 0 1.5rem 0;
+  line-height: 1.6;
+}
+
+.service-link {
+  color: #1a5f7a;
+  background: none;
+  border: none;
+  text-decoration: none;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  padding: 0;
+  font-size: 1rem;
+}
+
+.service-link:hover {
+  color: #ffc107;
+  transform: translateX(5px);
+}
+
+.service-link:active {
+  transform: translateX(3px);
+}

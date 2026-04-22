@@ -1,0 +1,36 @@
+.services-page {
+  padding-top: 80px;
+}
+
+.page-header {
+  background: linear-gradient(135deg, #1a5f7a 0%, #159895 100%);
+  color: white;
+  padding: 60px 20px;
+  text-align: center;
+}
+
+.page-header h1 {
+  font-size: 2.5rem;
+  margin-bottom: 15px;
+}
+
+.page-header p {
+  font-size: 1.1rem;
+  opacity: 0.9;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.services-page .services {
+  padding-top: 40px;
+}
+
+@media (max-width: 768px) {
+  .page-header h1 {
+    font-size: 2rem;
+  }
+  
+  .page-header p {
+    font-size: 1rem;
+  }
+}

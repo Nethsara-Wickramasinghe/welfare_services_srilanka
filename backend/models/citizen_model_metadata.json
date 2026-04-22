@@ -1,0 +1,83 @@
+{
+  "feature_columns": [
+    "district_code",
+    "ds_division_code",
+    "population_total",
+    "occupied_housing_units",
+    "children_ratio",
+    "elderly_ratio",
+    "persons_per_housing_unit",
+    "housing_units_log",
+    "population_log",
+    "family_size",
+    "income_value",
+    "employment_status",
+    "has_elderly",
+    "has_disabled_member",
+    "has_chronic_illness",
+    "recent_disaster_impact",
+    "food_insecurity_score",
+    "healthcare_access_score"
+  ],
+  "categorical_features": [
+    "employment_status"
+  ],
+  "numeric_features": [
+    "district_code",
+    "ds_division_code",
+    "population_total",
+    "occupied_housing_units",
+    "children_ratio",
+    "elderly_ratio",
+    "persons_per_housing_unit",
+    "housing_units_log",
+    "population_log",
+    "family_size",
+    "income_value",
+    "has_elderly",
+    "has_disabled_member",
+    "has_chronic_illness",
+    "recent_disaster_impact",
+    "food_insecurity_score",
+    "healthcare_access_score"
+  ],
+  "service_labels": [
+    "food_assistance_label",
+    "health_support_label",
+    "elderly_care_label",
+    "disaster_relief_label"
+  ],
+  "service_name_map": {
+    "food_assistance_label": "Food Assistance",
+    "health_support_label": "Health Support",
+    "elderly_care_label": "Elderly Care",
+    "disaster_relief_label": "Disaster Relief"
+  },
+  "priority_classes": [
+    "Low",
+    "Medium",
+    "High"
+  ],
+  "service_metrics": {
+    "food_assistance_label": {
+      "f1": 0.9973,
+      "positive_rate": 0.8698
+    },
+    "health_support_label": {
+      "f1": 1.0,
+      "positive_rate": 0.32
+    },
+    "elderly_care_label": {
+      "f1": 0.9999,
+      "positive_rate": 0.608
+    },
+    "disaster_relief_label": {
+      "f1": 0.9993,
+      "positive_rate": 0.0523
+    }
+  },
+  "priority_metrics": {
+    "accuracy": 0.9792,
+    "macro_f1": 0.9267
+  }
+}
