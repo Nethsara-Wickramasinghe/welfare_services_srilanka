@@ -84,6 +84,126 @@ function ProgramGroupLabel({ group }) {
   return <span className={`program-group-badge ${group || "default"}`}>{labels[group] || "Support option"}</span>;
 }
 
+function OutcomeTypeLabel({ outcomeType }) {
+  const labels = {
+    direct_welfare_match: "Direct welfare match",
+    referral_only_with_service_signal: "Referral path with service signal",
+    referral_only: "Referral-only result",
+    high_priority_no_programme_match: "High priority without programme match",
+    moderate_priority_no_programme_match: "Moderate priority without programme match",
+    no_strong_match: "No strong match",
+  };
+
+  if (!outcomeType) return null;
+  return <span className={`outcome-type-badge ${outcomeType}`}>{labels[outcomeType] || "Guidance result"}</span>;
+}
+
+function ProgramOptionSection({ title, emptyCopy, programs }) {
+  return (
+    <div className="result-card">
+      <h3>{title}</h3>
+      {programs?.length ? (
+        <div className="program-card-list">
+          {programs.map((program) => (
+            <article key={program.id} className="program-card">
+              <div className="program-card-header">
+                <div>
+                  <ProgramGroupLabel group={program.group} />
+                  <h4>{program.display_name}</h4>
+                </div>
+                {program.official_url ? (
+                  <a
+                    className="program-link"
+                    href={program.official_url}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Official site
+                  </a>
+                ) : null}
+              </div>
+
+              <p className="program-summary">{program.summary}</p>
+
+              <div className="program-meta">
+                <div>
+                  <span>Authority</span>
+                  <strong>{program.authority}</strong>
+                </div>
+                {program.contact?.hotline ? (
+                  <div>
+                    <span>Hotline</span>
+                    <strong>{program.contact.hotline}</strong>
+                  </div>
+                ) : null}
+                {program.contact?.phone ? (
+                  <div>
+                    <span>Phone</span>
+                    <strong>{program.contact.phone}</strong>
+                  </div>
+                ) : null}
+                {program.contact?.email ? (
+                  <div>
+                    <span>Email</span>
+                    <strong>{program.contact.email}</strong>
+                  </div>
+                ) : null}
+              </div>
+
+              {program.recommendation_reasons?.length ? (
+                <div className="program-section">
+                  <h5>Why it was matched</h5>
+                  <ul>
+                    {program.recommendation_reasons.map((reason) => (
+                      <li key={reason}>{reason}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+
+              {program.documents?.length ? (
+                <div className="program-section">
+                  <h5>Documents to prepare</h5>
+                  <ul>
+                    {program.documents.map((document) => (
+                      <li key={document}>{document}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+
+              {program.next_steps?.length ? (
+                <div className="program-section">
+                  <h5>What to do for this option</h5>
+                  <ol>
+                    {program.next_steps.map((step) => (
+                      <li key={step}>{step}</li>
+                    ))}
+                  </ol>
+                </div>
+              ) : null}
+            </article>
+          ))}
+        </div>
+      ) : (
+        <p className="result-empty-copy">{emptyCopy}</p>
+      )}
+    </div>
+  );
+}
+
+function InlineTipChips({ tips }) {
+  if (!tips?.length) return null;
+
+  return (
+    <div className="inline-tip-row">
+      {tips.map((tip) => (
+        <span key={tip} className="inline-tip-chip">{tip}</span>
+      ))}
+    </div>
+  );
+}
+
 export default function SocialWelfareNeed() {
   const [locations, setLocations] = useState([]);
   const [formData, setFormData] = useState(INITIAL_FORM);
@@ -135,6 +255,48 @@ export default function SocialWelfareNeed() {
   );
 
   const gnOptions = selectedDsDivision?.gn_divisions || [];
+  const employmentTips = useMemo(() => {
+    if (formData.employment_status === "self-employed") {
+      return ["Self-employed may open livelihood or microfinance referrals."];
+    }
+    if (formData.employment_status === "unemployed" || formData.employment_status === "unable-to-work") {
+      return ["Current employment status may increase income-support or referral matches."];
+    }
+    if (formData.employment_status === "retired") {
+      return ["Retired households may unlock elderly-support guidance when other needs are present."];
+    }
+    return [];
+  }, [formData.employment_status]);
+
+  const householdNeedTips = useMemo(() => {
+    const tips = [];
+    if (formData.has_elderly === 1) {
+      tips.push("Selecting Yes can unlock elderly-support guidance.");
+    }
+    if (formData.has_disabled_member === 1 || formData.has_chronic_illness === 1) {
+      tips.push("Health-related answers can strengthen health-support matches.");
+    }
+    if (formData.recent_disaster_impact === 1) {
+      tips.push("Disaster impact can unlock relief pathways.");
+    }
+    return tips;
+  }, [
+    formData.has_chronic_illness,
+    formData.has_disabled_member,
+    formData.has_elderly,
+    formData.recent_disaster_impact,
+  ]);
+
+  const difficultyTips = useMemo(() => {
+    const tips = [];
+    if (formData.food_insecurity_score >= 4) {
+      tips.push("Higher food difficulty can strengthen food-support matches.");
+    }
+    if (formData.healthcare_access_score <= 2) {
+      tips.push("Poor healthcare access can strengthen health-support matches.");
+    }
+    return tips;
+  }, [formData.food_insecurity_score, formData.healthcare_access_score]);
 
   const handleLocationChange = (key, value) => {
     setResult(null);
@@ -356,6 +518,7 @@ export default function SocialWelfareNeed() {
                         </option>
                       ))}
                     </select>
+                    <InlineTipChips tips={employmentTips} />
                   </label>
                 </div>
 
@@ -387,6 +550,7 @@ export default function SocialWelfareNeed() {
                     </label>
                   ))}
                 </div>
+                <InlineTipChips tips={householdNeedTips} />
               </div>
 
               <div className="section-block">
@@ -420,6 +584,7 @@ export default function SocialWelfareNeed() {
                     </select>
                   </label>
                 </div>
+                <InlineTipChips tips={difficultyTips} />
               </div>
 
               {error && <div className="form-error">{error}</div>}
@@ -460,6 +625,7 @@ export default function SocialWelfareNeed() {
                   <span className="result-label">Estimated priority</span>
                   <PriorityBadge level={result.priority_level} />
                   <AssessmentMethodBadge method={result.assessment_method} />
+                  <OutcomeTypeLabel outcomeType={result.outcome_type} />
                 </div>
                 <div className="result-score-card">
                   <span>Priority confidence</span>
@@ -467,136 +633,100 @@ export default function SocialWelfareNeed() {
                 </div>
               </div>
 
-              <div className="result-card">
-                <h3>Recommended Services</h3>
-                <div className="service-pill-list">
-                  {result.recommended_services?.map((service) => (
-                    <div key={service.service} className="service-pill">
-                      <span>{service.service}</span>
-                      <strong>{Math.round(service.score * 100)}%</strong>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {result.matched_programs?.length ? (
+              {result.result_summary ? (
                 <div className="result-card">
-                  <h3>Recommended Program Options</h3>
-                  <div className="program-card-list">
-                    {result.matched_programs.map((program) => (
-                      <article key={program.id} className="program-card">
-                        <div className="program-card-header">
-                          <div>
-                            <ProgramGroupLabel group={program.group} />
-                            <h4>{program.display_name}</h4>
-                          </div>
-                          {program.official_url ? (
-                            <a
-                              className="program-link"
-                              href={program.official_url}
-                              target="_blank"
-                              rel="noreferrer"
-                            >
-                              Official site
-                            </a>
-                          ) : null}
-                        </div>
-
-                        <p className="program-summary">{program.summary}</p>
-
-                        <div className="program-meta">
-                          <div>
-                            <span>Authority</span>
-                            <strong>{program.authority}</strong>
-                          </div>
-                          {program.contact?.hotline ? (
-                            <div>
-                              <span>Hotline</span>
-                              <strong>{program.contact.hotline}</strong>
-                            </div>
-                          ) : null}
-                          {program.contact?.phone ? (
-                            <div>
-                              <span>Phone</span>
-                              <strong>{program.contact.phone}</strong>
-                            </div>
-                          ) : null}
-                          {program.contact?.email ? (
-                            <div>
-                              <span>Email</span>
-                              <strong>{program.contact.email}</strong>
-                            </div>
-                          ) : null}
-                        </div>
-
-                        {program.recommendation_reasons?.length ? (
-                          <div className="program-section">
-                            <h5>Why it was matched</h5>
-                            <ul>
-                              {program.recommendation_reasons.map((reason) => (
-                                <li key={reason}>{reason}</li>
-                              ))}
-                            </ul>
-                          </div>
-                        ) : null}
-
-                        {program.documents?.length ? (
-                          <div className="program-section">
-                            <h5>Documents to prepare</h5>
-                            <ul>
-                              {program.documents.map((document) => (
-                                <li key={document}>{document}</li>
-                              ))}
-                            </ul>
-                          </div>
-                        ) : null}
-
-                        {program.next_steps?.length ? (
-                          <div className="program-section">
-                            <h5>What to do for this option</h5>
-                            <ol>
-                              {program.next_steps.map((step) => (
-                                <li key={step}>{step}</li>
-                              ))}
-                            </ol>
-                          </div>
-                        ) : null}
-                      </article>
-                    ))}
-                  </div>
+                  <h3>Outcome Summary</h3>
+                  <p className="result-empty-copy">{result.result_summary}</p>
                 </div>
               ) : null}
 
-              <div className="result-card">
-                <h3>Why This Result</h3>
-                <ul>
-                  {result.top_factors?.map((factor) => (
-                    <li key={factor}>{factor}</li>
-                  ))}
-                </ul>
+              <div className="result-guidance-note">
+                This is guidance, not final eligibility. Final decisions should be confirmed by the relevant welfare authority.
               </div>
 
               <div className="result-card">
-                <h3>Location Context</h3>
-                <div className="context-grid">
-                  <div>
-                    <span>Selected GN</span>
-                    <strong>{result.location_context?.gn_division_name}</strong>
+                <h3>Recommended Services</h3>
+                {result.recommended_services?.length ? (
+                  <div className="service-pill-list">
+                    {result.recommended_services.map((service) => (
+                      <div key={service.service} className="service-pill">
+                        <span>{service.service}</span>
+                        <strong>{Math.round(service.score * 100)}%</strong>
+                      </div>
+                    ))}
                   </div>
-                  <div>
-                    <span>Population</span>
-                    <strong>{result.location_context?.population_total?.toLocaleString?.() || result.location_context?.population_total}</strong>
-                  </div>
-                  <div>
-                    <span>Occupied housing units</span>
-                    <strong>{result.location_context?.occupied_housing_units?.toLocaleString?.() || result.location_context?.occupied_housing_units}</strong>
-                  </div>
-                  <div>
-                    <span>Elderly ratio</span>
-                    <strong>{result.location_context?.elderly_ratio}</strong>
+                ) : (
+                  <p className="result-empty-copy">
+                    No strongly matched welfare service was identified from the
+                    current household and location details.
+                  </p>
+                )}
+              </div>
+
+              <ProgramOptionSection
+                title="Direct Welfare Programmes"
+                programs={result.direct_welfare_programs}
+                emptyCopy="No direct welfare programme match was identified from the current household details."
+              />
+
+              <ProgramOptionSection
+                title="Relevant Referrals"
+                programs={result.referral_programs}
+                emptyCopy="No additional referral pathways were identified from the current household details."
+              />
+
+              <details className="technical-details">
+                <summary>Technical details</summary>
+
+                <div className="result-card technical-card">
+                  <h3>Why This Result</h3>
+                  {result.household_reasons?.length ? (
+                    <>
+                      <h4 className="reason-subheading">Household reasons</h4>
+                      <ul>
+                        {result.household_reasons.map((factor) => (
+                          <li key={factor}>{factor}</li>
+                        ))}
+                      </ul>
+                    </>
+                  ) : (
+                    <p className="result-empty-copy">No household-specific reason was generated for this result.</p>
+                  )}
+
+                  {result.location_reasons?.length ? (
+                    <>
+                      <h4 className="reason-subheading">Location context considered</h4>
+                      <ul>
+                        {result.location_reasons.map((factor) => (
+                          <li key={factor}>{factor}</li>
+                        ))}
+                      </ul>
+                    </>
+                  ) : null}
+                </div>
+
+                <div className="result-card technical-card">
+                  <h3>Location Context</h3>
+                  <div className="context-grid">
+                    <div>
+                      <span>Selected GN</span>
+                      <strong>{result.location_context?.gn_division_name}</strong>
+                    </div>
+                    <div>
+                      <span>Population</span>
+                      <strong>{result.location_context?.population_total?.toLocaleString?.() || result.location_context?.population_total}</strong>
+                    </div>
+                    <div>
+                      <span>Occupied housing units</span>
+                      <strong>{result.location_context?.occupied_housing_units?.toLocaleString?.() || result.location_context?.occupied_housing_units}</strong>
+                    </div>
+                    <div>
+                      <span>Elderly ratio</span>
+                      <strong>{result.location_context?.elderly_ratio}</strong>
+                    </div>
                   </div>
                 </div>
-              </div>
+              </details>
 
               <div className="result-card">
                 <h3>What To Do Next</h3>

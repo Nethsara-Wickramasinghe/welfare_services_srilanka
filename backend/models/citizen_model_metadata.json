@@ -1,14 +1,8 @@
 {
   "feature_columns": [
-    "district_code",
-    "ds_division_code",
-    "population_total",
-    "occupied_housing_units",
     "children_ratio",
     "elderly_ratio",
     "persons_per_housing_unit",
-    "housing_units_log",
-    "population_log",
     "family_size",
     "income_value",
     "employment_status",
@@ -23,15 +17,9 @@
     "employment_status"
   ],
   "numeric_features": [
-    "district_code",
-    "ds_division_code",
-    "population_total",
-    "occupied_housing_units",
     "children_ratio",
     "elderly_ratio",
     "persons_per_housing_unit",
-    "housing_units_log",
-    "population_log",
     "family_size",
     "income_value",
     "has_elderly",
@@ -53,6 +41,14 @@
     "elderly_care_label": "Elderly Care",
     "disaster_relief_label": "Disaster Relief"
   },
+  "service_thresholds": {
+    "food_assistance_label": 0.55,
+    "health_support_label": 0.85,
+    "elderly_care_label": 0.85,
+    "disaster_relief_label": 0.85
+  },
+  "no_strong_match_label": "no_strong_match_label",
+  "no_strong_match_threshold": 0.5,
   "priority_classes": [
     "Low",
     "Medium",
@@ -60,24 +56,118 @@
   ],
   "service_metrics": {
     "food_assistance_label": {
-      "f1": 0.9973,
-      "positive_rate": 0.8698
+      "f1": 0.9986,
+      "positive_rate": 0.4342,
+      "threshold": 0.55,
+      "validation_threshold_f1": 0.9982
     },
     "health_support_label": {
       "f1": 1.0,
-      "positive_rate": 0.32
+      "positive_rate": 0.1319,
+      "threshold": 0.85,
+      "validation_threshold_f1": 1.0
     },
     "elderly_care_label": {
-      "f1": 0.9999,
-      "positive_rate": 0.608
+      "f1": 1.0,
+      "positive_rate": 0.4367,
+      "threshold": 0.85,
+      "validation_threshold_f1": 1.0
     },
     "disaster_relief_label": {
-      "f1": 0.9993,
-      "positive_rate": 0.0523
+      "f1": 1.0,
+      "positive_rate": 0.0386,
+      "threshold": 0.85,
+      "validation_threshold_f1": 1.0
     }
   },
   "priority_metrics": {
-    "accuracy": 0.9792,
-    "macro_f1": 0.9267
+    "accuracy": 0.9915,
+    "macro_f1": 0.9568
+  },
+  "no_strong_match_metrics": {
+    "f1": 0.998,
+    "positive_rate": 0.3674,
+    "threshold": 0.5,
+    "validation_threshold_f1": 0.9981
+  },
+  "feature_importance_by_service": {
+    "food_assistance_label": {
+      "income_value": 0.5143,
+      "food_insecurity_score": 0.1854,
+      "family_size": 0.1262,
+      "employment_status": 0.0829,
+      "healthcare_access_score": 0.0304,
+      "has_elderly": 0.0176,
+      "persons_per_housing_unit": 0.016,
+      "children_ratio": 0.0132,
+      "elderly_ratio": 0.0089,
+      "has_chronic_illness": 0.0024,
+      "has_disabled_member": 0.0021,
+      "recent_disaster_impact": 0.0006
+    },
+    "health_support_label": {
+      "has_disabled_member": 0.9396,
+      "has_chronic_illness": 0.0211,
+      "income_value": 0.0115,
+      "healthcare_access_score": 0.006,
+      "has_elderly": 0.0049,
+      "persons_per_housing_unit": 0.0037,
+      "family_size": 0.0031,
+      "elderly_ratio": 0.0029,
+      "children_ratio": 0.0028,
+      "employment_status": 0.0022,
+      "food_insecurity_score": 0.0021,
+      "recent_disaster_impact": 0.0002
+    },
+    "elderly_care_label": {
+      "has_elderly": 0.7888,
+      "income_value": 0.0859,
+      "has_chronic_illness": 0.0475,
+      "healthcare_access_score": 0.0277,
+      "family_size": 0.0162,
+      "employment_status": 0.0104,
+      "elderly_ratio": 0.0072,
+      "food_insecurity_score": 0.0069,
+      "children_ratio": 0.0039,
+      "persons_per_housing_unit": 0.0026,
+      "has_disabled_member": 0.0026,
+      "recent_disaster_impact": 0.0002
+    },
+    "disaster_relief_label": {
+      "recent_disaster_impact": 0.9693,
+      "persons_per_housing_unit": 0.0053,
+      "elderly_ratio": 0.0047,
+      "children_ratio": 0.0046,
+      "income_value": 0.0043,
+      "family_size": 0.0031,
+      "healthcare_access_score": 0.0024,
+      "employment_status": 0.0023,
+      "food_insecurity_score": 0.0016,
+      "has_elderly": 0.0015,
+      "has_chronic_illness": 0.0006,
+      "has_disabled_member": 0.0004
+    }
+  },
+  "location_influence_audit": {
+    "food_assistance_label": {
+      "location_share": 0.0381,
+      "household_share": 0.9619
+    },
+    "health_support_label": {
+      "location_share": 0.0094,
+      "household_share": 0.9907
+    },
+    "elderly_care_label": {
+      "location_share": 0.0137,
+      "household_share": 0.9862
+    },
+    "disaster_relief_label": {
+      "location_share": 0.0146,
+      "household_share": 0.9855
+    }
+  },
+  "dataset_profile": {
+    "rows": 98056,
+    "no_strong_match_rate": 0.3674
   }
 }

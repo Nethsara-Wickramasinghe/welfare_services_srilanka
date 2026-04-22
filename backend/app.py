@@ -21,6 +21,7 @@ GN_CONTEXT_PATH = os.path.join(PROJECT_ROOT, "data", "research", "gn_official_co
 PROGRAM_CATALOG_PATH = os.path.join(BASE_DIR, "program_catalog.json")
 CITIZEN_SERVICE_MODEL_PATH = os.path.join(BASE_DIR, "models", "citizen_service_model.pkl")
 CITIZEN_PRIORITY_MODEL_PATH = os.path.join(BASE_DIR, "models", "citizen_priority_model.pkl")
+CITIZEN_OUTCOME_MODEL_PATH = os.path.join(BASE_DIR, "models", "citizen_outcome_model.pkl")
 CITIZEN_MODEL_METADATA_PATH = os.path.join(BASE_DIR, "models", "citizen_model_metadata.json")
 
 INCOME_RANGE_MAPPING = {
@@ -46,6 +47,16 @@ LOCATION_REQUIRED_FIELDS = [
     "healthcare_access_score",
 ]
 
+VALID_INCOME_RANGES = set(INCOME_RANGE_MAPPING.keys())
+VALID_EMPLOYMENT_STATUSES = {
+    "employed",
+    "self-employed",
+    "unemployed",
+    "retired",
+    "student",
+    "unable-to-work",
+}
+
 NEXT_STEP_LIBRARY = {
     "Food Assistance": "Carry NIC and income proof when visiting the Divisional Secretariat.",
     "Health Support": "Bring clinic records, disability certificates, or chronic illness documents if available.",
@@ -59,6 +70,8 @@ SERVICE_PROGRAM_MAP = {
     "Elderly Care": ["elderly_assistance", "helpage_referral"],
     "Disaster Relief": ["disaster_relief", "sarvodaya_referral"],
 }
+
+MIN_SERVICE_CONFIDENCE = 0.35
 
 gn_context_df = pd.read_csv(GN_CONTEXT_PATH)
 gn_context_df[["district_name", "ds_division_name", "gn_division_name"]] = gn_context_df[
@@ -89,6 +102,7 @@ location_cache: dict[str, Any] | None = None
 program_catalog: dict[str, Any] | None = None
 citizen_service_model = None
 citizen_priority_model = None
+citizen_outcome_model = None
 citizen_model_metadata: dict[str, Any] | None = None
 
 
@@ -96,12 +110,59 @@ def normalize_location(value: Any) -> str:
     return " ".join(str(value or "").strip().lower().split())
 
 
+def validate_assessment_payload(payload: dict[str, Any]) -> list[str]:
+    errors: list[str] = []
+
+    try:
+        family_size = int(payload.get("family_size"))
+        if family_size < 1 or family_size > 20:
+            errors.append("Family size must be between 1 and 20.")
+    except (TypeError, ValueError):
+        errors.append("Family size must be a whole number.")
+
+    income_range = payload.get("income_range")
+    if income_range not in VALID_INCOME_RANGES:
+        errors.append("Monthly income range is invalid.")
+
+    employment_status = normalize_location(payload.get("employment_status"))
+    if employment_status not in VALID_EMPLOYMENT_STATUSES:
+        errors.append("Employment status is invalid.")
+
+    for field_name, label in [
+        ("has_elderly", "Elderly household flag"),
+        ("has_disabled_member", "Disabled household flag"),
+        ("has_chronic_illness", "Chronic illness flag"),
+        ("recent_disaster_impact", "Recent disaster flag"),
+    ]:
+        try:
+            value = int(payload.get(field_name))
+            if value not in {0, 1}:
+                errors.append(f"{label} must be either 0 or 1.")
+        except (TypeError, ValueError):
+            errors.append(f"{label} must be either 0 or 1.")
+
+    for field_name, label in [
+        ("food_insecurity_score", "Food insecurity score"),
+        ("healthcare_access_score", "Healthcare access score"),
+    ]:
+        try:
+            value = int(payload.get(field_name))
+            if value < 1 or value > 5:
+                errors.append(f"{label} must be between 1 and 5.")
+        except (TypeError, ValueError):
+            errors.append(f"{label} must be a whole number between 1 and 5.")
+
+    return errors
+
+
 def load_optional_citizen_models() -> None:
-    global citizen_service_model, citizen_priority_model, citizen_model_metadata
+    global citizen_service_model, citizen_priority_model, citizen_outcome_model, citizen_model_metadata
     model_paths = [CITIZEN_SERVICE_MODEL_PATH, CITIZEN_PRIORITY_MODEL_PATH, CITIZEN_MODEL_METADATA_PATH]
     if all(os.path.exists(path) for path in model_paths):
         citizen_service_model = joblib.load(CITIZEN_SERVICE_MODEL_PATH)
         citizen_priority_model = joblib.load(CITIZEN_PRIORITY_MODEL_PATH)
+        if os.path.exists(CITIZEN_OUTCOME_MODEL_PATH):
+            citizen_outcome_model = joblib.load(CITIZEN_OUTCOME_MODEL_PATH)
         with open(CITIZEN_MODEL_METADATA_PATH, "r", encoding="utf-8") as metadata_file:
             citizen_model_metadata = json.load(metadata_file)
 
@@ -200,35 +261,91 @@ def build_citizen_feature_row(payload: dict[str, Any], context_row: pd.Series) -
     }
 
 
-def build_top_factors(payload: dict[str, Any], context_row: pd.Series) -> list[str]:
+def build_reason_breakdown(
+    payload: dict[str, Any],
+    context_row: pd.Series,
+    recommended_services: list[dict[str, Any]] | None = None,
+    matched_programs: list[dict[str, Any]] | None = None,
+    priority_level: str | None = None,
+) -> tuple[list[str], list[str]]:
     family_size = max(int(payload["family_size"]), 1)
     income_value = INCOME_RANGE_MAPPING.get(payload["income_range"], 50000)
     income_per_capita = income_value / family_size
     food_insecurity_score = max(1, min(int(payload["food_insecurity_score"]), 5))
+    employment_status = normalize_location(payload.get("employment_status"))
     has_elderly = int(payload["has_elderly"]) == 1
     has_disabled_member = int(payload["has_disabled_member"]) == 1
     has_chronic_illness = int(payload["has_chronic_illness"]) == 1
     recent_disaster_impact = int(payload["recent_disaster_impact"]) == 1
 
     poverty_score = max(0.0, min(1.0, 1 - min(income_per_capita / 50000, 1)))
-    top_factors = []
+    household_factors = []
+    contextual_factors = []
+
     if poverty_score >= 0.6:
-        top_factors.append("Low income range relative to household size")
+        household_factors.append("Low income range relative to household size")
     if food_insecurity_score >= 4:
-        top_factors.append("High reported food insecurity")
+        household_factors.append("High reported food insecurity")
     if has_disabled_member:
-        top_factors.append("A disabled household member increases health support need")
+        household_factors.append("A disabled household member increases health support need")
     if has_chronic_illness:
-        top_factors.append("Chronic illness raises the need for healthcare support")
-    if has_elderly or context_row["elderly_ratio"] >= 0.14:
-        top_factors.append("The household or selected GN division shows elevated elderly support needs")
+        household_factors.append("Chronic illness raises the need for healthcare support")
+    if has_elderly:
+        household_factors.append("The household includes an elderly family member who may need support")
     if recent_disaster_impact:
-        top_factors.append("Recent disaster impact suggests urgent relief support")
+        household_factors.append("Recent disaster impact suggests urgent relief support")
+    if employment_status == "self-employed":
+        household_factors.append("Self-employment status may match livelihood or finance referral pathways")
+    elif employment_status in {"unemployed", "unable-to-work"}:
+        household_factors.append("Current employment status may increase eligibility for income or livelihood support")
+
+    if context_row["elderly_ratio"] >= 0.14:
+        contextual_factors.append("The selected GN division has a relatively high elderly population share")
     if context_row["persons_per_housing_unit"] >= 4:
-        top_factors.append("The selected GN division has relatively high housing pressure")
-    if not top_factors:
-        top_factors.append("The selected location and household inputs indicate moderate welfare vulnerability")
-    return top_factors[:4]
+        contextual_factors.append("The selected GN division has relatively high housing pressure")
+
+    recommended_services = recommended_services or []
+    matched_programs = matched_programs or []
+
+    if not household_factors and not recommended_services and not matched_programs:
+        household_factors = [
+            "Your household inputs do not indicate a strong direct welfare need at this time.",
+            "No service or programme trigger was strongly matched from the current household details.",
+        ]
+        location_reasons = [
+            "Location context is shown below for reference, but area-level indicators alone did not create a direct programme match."
+        ]
+        return household_factors[:4], location_reasons[:3]
+
+    if not household_factors and priority_level == "Low":
+        household_factors.append("Your household inputs currently indicate low immediate welfare vulnerability")
+
+    location_reasons = []
+    if contextual_factors and (recommended_services or priority_level in {"Medium", "High"}):
+        location_reasons.extend(contextual_factors)
+    elif contextual_factors and not household_factors:
+        location_reasons.append("Location context was considered together with your household details when generating this result")
+
+    if not household_factors:
+        household_factors.append("The selected location and household inputs indicate moderate welfare vulnerability")
+    return household_factors[:4], location_reasons[:3]
+
+
+def build_top_factors(
+    payload: dict[str, Any],
+    context_row: pd.Series,
+    recommended_services: list[dict[str, Any]] | None = None,
+    matched_programs: list[dict[str, Any]] | None = None,
+    priority_level: str | None = None,
+) -> list[str]:
+    household_reasons, location_reasons = build_reason_breakdown(
+        payload,
+        context_row,
+        recommended_services,
+        matched_programs,
+        priority_level,
+    )
+    return (household_reasons + location_reasons)[:4]
 
 
 def build_next_steps(recommended_services: list[dict[str, Any]], matched_programs: list[dict[str, Any]] | None = None) -> list[str]:
@@ -246,6 +363,96 @@ def build_next_steps(recommended_services: list[dict[str, Any]], matched_program
         if guidance and guidance not in next_steps:
             next_steps.append(guidance)
     return next_steps[:6]
+
+
+def split_program_matches(matched_programs: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    direct_welfare_programs = []
+    referral_programs = []
+    for program in matched_programs:
+        if program.get("group") == "government_primary":
+            direct_welfare_programs.append(program)
+        else:
+            referral_programs.append(program)
+    return direct_welfare_programs, referral_programs
+
+
+def build_outcome_summary(
+    payload: dict[str, Any],
+    recommended_services: list[dict[str, Any]],
+    direct_welfare_programs: list[dict[str, Any]],
+    referral_programs: list[dict[str, Any]],
+) -> str:
+    employment_status = normalize_location(payload.get("employment_status"))
+
+    if direct_welfare_programs:
+        return "Your household details suggest a meaningful welfare support match, and the programmes below are the strongest direct options identified."
+    if recommended_services and referral_programs:
+        return "Your household details suggest some support needs, but the strongest current matches are referral pathways rather than direct welfare programmes."
+    if referral_programs:
+        if employment_status == "self-employed":
+            return "No strong direct welfare match was identified, but your self-employment status matched a livelihood or finance referral that may still be useful."
+        if employment_status in {"unemployed", "unable-to-work"}:
+            return "No strong direct welfare match was identified, but your current employment situation matched referral pathways that may help with livelihood or support access."
+        return "No strong direct welfare match was identified, but some referral pathways were found based on your current household details."
+    return "Your household details do not currently show a strong direct welfare or programme match."
+
+
+def determine_outcome_type(
+    recommended_services: list[dict[str, Any]],
+    direct_welfare_programs: list[dict[str, Any]],
+    referral_programs: list[dict[str, Any]],
+    priority_level: str,
+) -> str:
+    if direct_welfare_programs:
+        return "direct_welfare_match"
+    if recommended_services and referral_programs:
+        return "referral_only_with_service_signal"
+    if referral_programs:
+        return "referral_only"
+    if priority_level == "High":
+        return "high_priority_no_programme_match"
+    if priority_level == "Medium":
+        return "moderate_priority_no_programme_match"
+    return "no_strong_match"
+
+
+def service_passes_household_guardrail(payload: dict[str, Any], service_name: str) -> bool:
+    income_range = payload.get("income_range")
+    employment_status = normalize_location(payload.get("employment_status"))
+    has_elderly = int(payload.get("has_elderly", 0)) == 1
+    has_disabled_member = int(payload.get("has_disabled_member", 0)) == 1
+    has_chronic_illness = int(payload.get("has_chronic_illness", 0)) == 1
+    recent_disaster_impact = int(payload.get("recent_disaster_impact", 0)) == 1
+    food_insecurity_score = max(1, min(int(payload.get("food_insecurity_score", 1)), 5))
+    healthcare_access_score = max(1, min(int(payload.get("healthcare_access_score", 5)), 5))
+
+    if service_name == "Elderly Care":
+        return has_elderly
+    if service_name == "Disaster Relief":
+        return recent_disaster_impact
+    if service_name == "Health Support":
+        return has_disabled_member or has_chronic_illness or healthcare_access_score <= 2
+    if service_name == "Food Assistance":
+        return (
+            income_range in {"below-25000", "25000-50000"}
+            or employment_status in {"unemployed", "unable-to-work"}
+            or food_insecurity_score >= 4
+        )
+    return True
+
+
+def apply_service_guardrails(payload: dict[str, Any], recommended_services: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [
+        service
+        for service in recommended_services
+        if service_passes_household_guardrail(payload, service["service"])
+    ]
+
+
+def get_service_threshold(service_label: str) -> float:
+    if citizen_model_metadata and "service_thresholds" in citizen_model_metadata:
+        return float(citizen_model_metadata["service_thresholds"].get(service_label, MIN_SERVICE_CONFIDENCE))
+    return MIN_SERVICE_CONFIDENCE
 
 
 def normalize_payload_value(value: Any) -> Any:
@@ -328,9 +535,10 @@ def match_programs_to_assessment(payload: dict[str, Any], recommended_services: 
             if not program or program_id in added_ids:
                 continue
             matches, trigger_reasons = program_trigger_matches(payload, program)
+            if not matches:
+                continue
             reasons = [f"Aligned with the recommended service: {service['service']}"]
-            if matches:
-                reasons.extend(trigger_reasons)
+            reasons.extend(trigger_reasons)
             matched.append(summarize_program(program, reasons))
             added_ids.add(program_id)
 
@@ -414,20 +622,33 @@ def scoring_fallback_assessment(payload: dict[str, Any], context_row: pd.Series)
     recommended_services = [
         {"service": service_name, "score": round(float(score), 3)}
         for service_name, score in sorted_services
-        if score >= 0.35
+        if score >= MIN_SERVICE_CONFIDENCE
     ][:3]
-    if not recommended_services:
-        top_service, top_score = sorted_services[0]
-        recommended_services = [{"service": top_service, "score": round(float(top_score), 3)}]
+    recommended_services = apply_service_guardrails(payload, recommended_services)
 
     matched_programs = match_programs_to_assessment(payload, recommended_services)
+    direct_welfare_programs, referral_programs = split_program_matches(matched_programs)
+    outcome_type = determine_outcome_type(recommended_services, direct_welfare_programs, referral_programs, priority_level)
+    household_reasons, location_reasons = build_reason_breakdown(
+        payload,
+        context_row,
+        recommended_services,
+        matched_programs,
+        priority_level,
+    )
 
     return {
         "recommended_services": recommended_services,
         "priority_level": priority_level,
         "priority_score": round(float(vulnerability_score), 3),
-        "top_factors": build_top_factors(payload, context_row),
+        "outcome_type": outcome_type,
+        "result_summary": build_outcome_summary(payload, recommended_services, direct_welfare_programs, referral_programs),
+        "household_reasons": household_reasons,
+        "location_reasons": location_reasons,
+        "top_factors": (household_reasons + location_reasons)[:4],
         "matched_programs": matched_programs,
+        "direct_welfare_programs": direct_welfare_programs,
+        "referral_programs": referral_programs,
         "next_steps": build_next_steps(recommended_services, matched_programs),
         "location_context": {
             "district_name": context_row["display_district_name"],
@@ -457,20 +678,20 @@ def predict_citizen_assessment(payload: dict[str, Any], context_row: pd.Series) 
     for idx, label in enumerate(service_labels):
         estimator_probs = service_probabilities[idx][0]
         positive_probability = float(estimator_probs[-1])
-        if positive_probability >= 0.35:
+        if positive_probability >= get_service_threshold(label):
             recommended_services.append(
                 {"service": service_name_map[label], "score": round(positive_probability, 3)}
             )
 
     recommended_services.sort(key=lambda item: item["score"], reverse=True)
-    if not recommended_services:
-        fallback_idx = int(np.argmax([float(probs[0][-1]) for probs in service_probabilities]))
-        recommended_services = [
-            {
-                "service": service_name_map[service_labels[fallback_idx]],
-                "score": round(float(service_probabilities[fallback_idx][0][-1]), 3),
-            }
-        ]
+    recommended_services = apply_service_guardrails(payload, recommended_services[:3])
+
+    no_strong_match_probability = None
+    if citizen_outcome_model is not None and citizen_model_metadata:
+        no_strong_match_probability = float(citizen_outcome_model.predict_proba(feature_df)[0][-1])
+        no_strong_match_threshold = float(citizen_model_metadata.get("no_strong_match_threshold", 0.5))
+        if no_strong_match_probability >= no_strong_match_threshold:
+            recommended_services = []
 
     classifier = citizen_priority_model.named_steps.get("classifier")
     priority_prediction = citizen_priority_model.predict(feature_df)[0]
@@ -485,15 +706,31 @@ def predict_citizen_assessment(payload: dict[str, Any], context_row: pd.Series) 
     else:
         priority_score = round(float(np.max(priority_probabilities)), 3)
 
-    matched_programs = match_programs_to_assessment(payload, recommended_services[:3])
+    matched_programs = match_programs_to_assessment(payload, recommended_services)
+    direct_welfare_programs, referral_programs = split_program_matches(matched_programs)
+    outcome_type = determine_outcome_type(recommended_services, direct_welfare_programs, referral_programs, priority_prediction)
+    household_reasons, location_reasons = build_reason_breakdown(
+        payload,
+        context_row,
+        recommended_services,
+        matched_programs,
+        priority_prediction,
+    )
 
     return {
-        "recommended_services": recommended_services[:3],
+        "recommended_services": recommended_services,
         "priority_level": priority_prediction,
         "priority_score": priority_score,
-        "top_factors": build_top_factors(payload, context_row),
+        "no_strong_match_probability": round(no_strong_match_probability, 3) if no_strong_match_probability is not None else None,
+        "outcome_type": outcome_type,
+        "result_summary": build_outcome_summary(payload, recommended_services, direct_welfare_programs, referral_programs),
+        "household_reasons": household_reasons,
+        "location_reasons": location_reasons,
+        "top_factors": (household_reasons + location_reasons)[:4],
         "matched_programs": matched_programs,
-        "next_steps": build_next_steps(recommended_services[:3], matched_programs),
+        "direct_welfare_programs": direct_welfare_programs,
+        "referral_programs": referral_programs,
+        "next_steps": build_next_steps(recommended_services, matched_programs),
         "location_context": {
             "district_name": context_row["display_district_name"],
             "ds_division_name": context_row["display_ds_division_name"],
@@ -514,6 +751,7 @@ def health_check():
             "status": "ok",
             "message": "Backend is running",
             "citizen_ml_models_loaded": bool(citizen_service_model and citizen_priority_model and citizen_model_metadata),
+            "citizen_outcome_model_loaded": bool(citizen_outcome_model),
         }
     )
 
@@ -535,6 +773,10 @@ def assess_citizen():
         missing = [field for field in LOCATION_REQUIRED_FIELDS if field not in payload or str(payload[field]).strip() == ""]
         if missing:
             return jsonify({"error": f"Missing required fields: {', '.join(missing)}"}), 400
+
+        validation_errors = validate_assessment_payload(payload)
+        if validation_errors:
+            return jsonify({"error": " ".join(validation_errors)}), 400
 
         context_row = get_gn_context(
             payload["district_name"], payload["ds_division_name"], payload["gn_division_name"]

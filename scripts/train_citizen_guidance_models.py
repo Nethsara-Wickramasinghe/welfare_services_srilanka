@@ -30,16 +30,12 @@ SERVICE_NAME_MAP = {
     "disaster_relief_label": "Disaster Relief",
 }
 
+NO_STRONG_MATCH_LABEL = "no_strong_match_label"
+
 FEATURE_COLUMNS = [
-    "district_code",
-    "ds_division_code",
-    "population_total",
-    "occupied_housing_units",
     "children_ratio",
     "elderly_ratio",
     "persons_per_housing_unit",
-    "housing_units_log",
-    "population_log",
     "family_size",
     "income_value",
     "employment_status",
@@ -129,32 +125,48 @@ def build_priority_and_service_targets(sample: dict[str, float | int | str], con
 
     service_scores = {
         "food_assistance_label": (
-            poverty_score * 0.45
-            + food_insecurity_norm * 0.30
-            + employment_risk * 0.15
-            + min(float(context["children_ratio"]) * 2.5, 1.0) * 0.10
+            poverty_score * 0.50
+            + food_insecurity_norm * 0.35
+            + employment_risk * 0.10
+            + min(float(context["children_ratio"]) * 2.0, 1.0) * 0.05
         ),
         "health_support_label": (
-            (1.0 if has_disabled_member else 0.0) * 0.45
-            + (1.0 if has_chronic_illness else 0.0) * 0.25
-            + healthcare_access_inverse * 0.20
-            + min(float(context["elderly_ratio"]) * 2.0, 1.0) * 0.10
+            (1.0 if has_disabled_member else 0.0) * 0.50
+            + (1.0 if has_chronic_illness else 0.0) * 0.30
+            + healthcare_access_inverse * 0.15
+            + min(float(context["elderly_ratio"]) * 1.8, 1.0) * 0.05
         ),
         "elderly_care_label": (
-            (1.0 if has_elderly else 0.0) * 0.55
-            + min(float(context["elderly_ratio"]) * 2.5, 1.0) * 0.25
+            (1.0 if has_elderly else 0.0) * 0.72
+            + min(float(context["elderly_ratio"]) * 2.0, 1.0) * 0.08
             + poverty_score * 0.10
             + healthcare_access_inverse * 0.10
         ),
         "disaster_relief_label": (
-            (1.0 if recent_disaster_impact else 0.0) * 0.60
+            (1.0 if recent_disaster_impact else 0.0) * 0.70
             + min(max(float(context["persons_per_housing_unit"]) - 3, 0) / 3, 1.0) * 0.15
-            + poverty_score * 0.15
-            + min(float(context["children_ratio"]) * 2.0, 1.0) * 0.10
+            + poverty_score * 0.10
+            + min(float(context["children_ratio"]) * 1.8, 1.0) * 0.05
         ),
     }
 
-    labels = {key: int(score >= 0.35) for key, score in service_scores.items()}
+    labels = {
+        "food_assistance_label": int(
+            service_scores["food_assistance_label"] >= 0.5
+            and (
+                income_value <= 50000
+                or employment_status in {"unemployed", "unable-to-work"}
+                or food_insecurity_score >= 4
+            )
+        ),
+        "health_support_label": int(
+            service_scores["health_support_label"] >= 0.5
+            and (has_disabled_member or has_chronic_illness or healthcare_access_score <= 2)
+        ),
+        "elderly_care_label": int(service_scores["elderly_care_label"] >= 0.5 and has_elderly),
+        "disaster_relief_label": int(service_scores["disaster_relief_label"] >= 0.5 and recent_disaster_impact),
+    }
+    labels[NO_STRONG_MATCH_LABEL] = int(sum(labels[label] for label in SERVICE_LABELS) == 0)
 
     vulnerability_score = (
         poverty_score * 0.30
@@ -174,6 +186,30 @@ def build_priority_and_service_targets(sample: dict[str, float | int | str], con
         priority = "Low"
 
     return labels, priority, round(float(vulnerability_score), 3)
+
+
+def build_low_need_sample(rng: np.random.Generator, context: pd.Series) -> dict[str, float | int | str]:
+    income_range = rng.choice(["100000-200000", "above-200000"], p=[0.35, 0.65])
+    income_value = INCOME_RANGE_MIDPOINTS[income_range]
+    family_size = int(rng.integers(1, 4))
+    return {
+        "children_ratio": float(context["children_ratio"]),
+        "elderly_ratio": float(context["elderly_ratio"]),
+        "persons_per_housing_unit": float(context["persons_per_housing_unit"]),
+        "family_size": family_size,
+        "income_value": income_value,
+        "employment_status": rng.choice(["employed", "self-employed"], p=[0.7, 0.3]),
+        "has_elderly": 0,
+        "has_disabled_member": 0,
+        "has_chronic_illness": 0,
+        "recent_disaster_impact": 0,
+        "food_insecurity_score": int(rng.choice([1, 2], p=[0.75, 0.25])),
+        "healthcare_access_score": int(rng.choice([4, 5], p=[0.45, 0.55])),
+        "district_name": context["district_name"],
+        "ds_division_name": context["ds_division_name"],
+        "gn_division_name": context["gn_division_name"],
+        "income_range": income_range,
+    }
 
 
 def synthesize_training_dataset(context_df: pd.DataFrame, samples_per_gn: int, seed: int) -> pd.DataFrame:
@@ -239,6 +275,15 @@ def synthesize_training_dataset(context_df: pd.DataFrame, samples_per_gn: int, s
             sample["vulnerability_score"] = vulnerability_score
             records.append(sample)
 
+        low_need_samples = max(1, samples_per_gn // 2)
+        for _ in range(low_need_samples):
+            sample = build_low_need_sample(rng, context)
+            labels, priority, vulnerability_score = build_priority_and_service_targets(sample, context)
+            sample.update(labels)
+            sample["priority_level"] = priority
+            sample["vulnerability_score"] = vulnerability_score
+            records.append(sample)
+
     return pd.DataFrame.from_records(records)
 
 
@@ -251,18 +296,113 @@ def build_preprocessor() -> ColumnTransformer:
     )
 
 
+def calibrate_binary_threshold(y_true: np.ndarray, y_score: np.ndarray) -> tuple[float, float]:
+    candidate_thresholds = np.arange(0.2, 0.86, 0.05)
+    best_threshold = 0.5
+    best_f1 = -1.0
+    for threshold in candidate_thresholds:
+        predictions = (y_score >= threshold).astype(int)
+        score = f1_score(y_true, predictions, zero_division=0)
+        if score > best_f1 or (np.isclose(score, best_f1) and threshold > best_threshold):
+            best_threshold = float(threshold)
+            best_f1 = float(score)
+    return round(best_threshold, 2), round(best_f1, 4)
+
+
+def aggregate_service_feature_importance(service_model: Pipeline) -> dict[str, dict[str, float]]:
+    preprocessor = service_model.named_steps["preprocessor"]
+    feature_names = preprocessor.get_feature_names_out()
+    classifier = service_model.named_steps["classifier"]
+    importance_map: dict[str, dict[str, float]] = {}
+
+    for label, estimator in zip(SERVICE_LABELS, classifier.estimators_):
+        grouped: dict[str, float] = {}
+        for feature_name, importance in zip(feature_names, estimator.feature_importances_):
+            normalized_name = feature_name
+            if normalized_name.startswith("categorical__employment_status_"):
+                base_name = "employment_status"
+            elif normalized_name.startswith("numeric__"):
+                base_name = normalized_name.replace("numeric__", "", 1)
+            else:
+                base_name = normalized_name
+            grouped[base_name] = grouped.get(base_name, 0.0) + float(importance)
+        importance_map[label] = {
+            name: round(score, 4)
+            for name, score in sorted(grouped.items(), key=lambda item: item[1], reverse=True)
+        }
+    return importance_map
+
+
+def summarize_location_influence(service_feature_importance: dict[str, dict[str, float]]) -> dict[str, dict[str, float]]:
+    location_features = {"children_ratio", "elderly_ratio", "persons_per_housing_unit"}
+    household_features = {
+        "family_size",
+        "income_value",
+        "employment_status",
+        "has_elderly",
+        "has_disabled_member",
+        "has_chronic_illness",
+        "recent_disaster_impact",
+        "food_insecurity_score",
+        "healthcare_access_score",
+    }
+    summary: dict[str, dict[str, float]] = {}
+    for label, importances in service_feature_importance.items():
+        location_total = sum(score for name, score in importances.items() if name in location_features)
+        household_total = sum(score for name, score in importances.items() if name in household_features)
+        summary[label] = {
+            "location_share": round(location_total, 4),
+            "household_share": round(household_total, 4),
+        }
+    return summary
+
+
 def train_models(training_df: pd.DataFrame, model_dir: Path) -> dict[str, object]:
     X = training_df[FEATURE_COLUMNS]
     y_services = training_df[SERVICE_LABELS]
     y_priority = training_df["priority_level"]
+    y_no_strong_match = training_df[NO_STRONG_MATCH_LABEL]
+    stratify_labels = training_df["priority_level"].astype(str) + "_" + training_df[NO_STRONG_MATCH_LABEL].astype(str)
 
-    X_train, X_test, y_services_train, y_services_test, y_priority_train, y_priority_test = train_test_split(
+    (
+        X_train_full,
+        X_test,
+        y_services_train_full,
+        y_services_test,
+        y_priority_train_full,
+        y_priority_test,
+        y_no_strong_match_train_full,
+        y_no_strong_match_test,
+        stratify_train_full,
+        _,
+    ) = train_test_split(
         X,
         y_services,
         y_priority,
+        y_no_strong_match,
+        stratify_labels,
         test_size=0.2,
         random_state=42,
-        stratify=y_priority,
+        stratify=stratify_labels,
+    )
+
+    (
+        X_train,
+        X_val,
+        y_services_train,
+        y_services_val,
+        y_priority_train,
+        y_priority_val,
+        y_no_strong_match_train,
+        y_no_strong_match_val,
+    ) = train_test_split(
+        X_train_full,
+        y_services_train_full,
+        y_priority_train_full,
+        y_no_strong_match_train_full,
+        test_size=0.25,
+        random_state=42,
+        stratify=stratify_train_full,
     )
 
     service_model = Pipeline(
@@ -300,26 +440,80 @@ def train_models(training_df: pd.DataFrame, model_dir: Path) -> dict[str, object
         ]
     )
 
+    no_strong_match_model = Pipeline(
+        steps=[
+            ("preprocessor", build_preprocessor()),
+            (
+                "classifier",
+                RandomForestClassifier(
+                    n_estimators=200,
+                    max_depth=14,
+                    min_samples_leaf=2,
+                    random_state=42,
+                    n_jobs=-1,
+                    class_weight="balanced_subsample",
+                ),
+            ),
+        ]
+    )
+
     service_model.fit(X_train, y_services_train)
     priority_model.fit(X_train, y_priority_train)
+    no_strong_match_model.fit(X_train, y_no_strong_match_train)
 
-    service_predictions = service_model.predict(X_test)
+    service_val_probabilities = service_model.predict_proba(X_val)
+    service_thresholds = {}
+    validation_service_metrics = {}
+    for idx, label in enumerate(SERVICE_LABELS):
+        threshold, threshold_f1 = calibrate_binary_threshold(
+            y_services_val[label].to_numpy(),
+            service_val_probabilities[idx][:, -1],
+        )
+        service_thresholds[label] = threshold
+        validation_service_metrics[label] = {"threshold_f1": threshold_f1}
+
+    service_test_probabilities = service_model.predict_proba(X_test)
+    service_predictions = np.column_stack(
+        [
+            (service_test_probabilities[idx][:, -1] >= service_thresholds[label]).astype(int)
+            for idx, label in enumerate(SERVICE_LABELS)
+        ]
+    )
     priority_predictions = priority_model.predict(X_test)
+    no_strong_match_val_probabilities = no_strong_match_model.predict_proba(X_val)[:, -1]
+    no_strong_match_threshold, no_strong_match_threshold_f1 = calibrate_binary_threshold(
+        y_no_strong_match_val.to_numpy(),
+        no_strong_match_val_probabilities,
+    )
+    no_strong_match_test_probabilities = no_strong_match_model.predict_proba(X_test)[:, -1]
+    no_strong_match_predictions = (no_strong_match_test_probabilities >= no_strong_match_threshold).astype(int)
 
     service_metrics = {}
     for idx, label in enumerate(SERVICE_LABELS):
         service_metrics[label] = {
             "f1": round(float(f1_score(y_services_test[label], service_predictions[:, idx], zero_division=0)), 4),
             "positive_rate": round(float(y_services_test[label].mean()), 4),
+            "threshold": service_thresholds[label],
+            "validation_threshold_f1": validation_service_metrics[label]["threshold_f1"],
         }
 
     priority_metrics = {
         "accuracy": round(float(accuracy_score(y_priority_test, priority_predictions)), 4),
         "macro_f1": round(float(f1_score(y_priority_test, priority_predictions, average="macro", labels=PRIORITY_CLASSES)), 4),
     }
+    no_strong_match_metrics = {
+        "f1": round(float(f1_score(y_no_strong_match_test, no_strong_match_predictions, zero_division=0)), 4),
+        "positive_rate": round(float(y_no_strong_match_test.mean()), 4),
+        "threshold": no_strong_match_threshold,
+        "validation_threshold_f1": no_strong_match_threshold_f1,
+    }
+
+    feature_importance_by_service = aggregate_service_feature_importance(service_model)
+    location_influence_audit = summarize_location_influence(feature_importance_by_service)
 
     joblib.dump(service_model, model_dir / "citizen_service_model.pkl")
     joblib.dump(priority_model, model_dir / "citizen_priority_model.pkl")
+    joblib.dump(no_strong_match_model, model_dir / "citizen_outcome_model.pkl")
 
     metadata = {
         "feature_columns": FEATURE_COLUMNS,
@@ -327,9 +521,19 @@ def train_models(training_df: pd.DataFrame, model_dir: Path) -> dict[str, object
         "numeric_features": NUMERIC_FEATURES,
         "service_labels": SERVICE_LABELS,
         "service_name_map": SERVICE_NAME_MAP,
+        "service_thresholds": service_thresholds,
+        "no_strong_match_label": NO_STRONG_MATCH_LABEL,
+        "no_strong_match_threshold": no_strong_match_threshold,
         "priority_classes": PRIORITY_CLASSES,
         "service_metrics": service_metrics,
         "priority_metrics": priority_metrics,
+        "no_strong_match_metrics": no_strong_match_metrics,
+        "feature_importance_by_service": feature_importance_by_service,
+        "location_influence_audit": location_influence_audit,
+        "dataset_profile": {
+            "rows": int(len(training_df)),
+            "no_strong_match_rate": round(float(training_df[NO_STRONG_MATCH_LABEL].mean()), 4),
+        },
     }
     (model_dir / "citizen_model_metadata.json").write_text(json.dumps(metadata, indent=2), encoding="utf-8")
     return metadata
